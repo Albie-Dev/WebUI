@@ -23,7 +23,7 @@ builder.Services.AddAccountEntityFrameworkCore(connectionString);
 builder.Services.AddLHAHangfireScheduling(options =>
 {
     options.ConfigureHangfire = config =>
-        config.UsePostgreSqlStorage(opt => opt.UseNpgsqlConnection(connectionString));
+        config.UsePostgreSqlStorage(connectionString);
 });
 
 builder.Services.AddLHAHangfireBackgroundWorker<SendBirthdayEmailWorker>();

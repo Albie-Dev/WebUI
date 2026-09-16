@@ -38,7 +38,9 @@ public sealed class QuartzJobExecutionAdapter<TArgs> : IJob
     /// <summary>
     /// Invoked by Quartz. Extracts serialized args from <see cref="JobDataMap"/> and delegates to the executer.
     /// </summary>
-    public async Task Execute(IJobExecutionContext quartzContext)
+    public async ValueTask Execute(
+        IJobExecutionContext quartzContext,
+        CancellationToken cancellationToken = default)
     {
         if (!_options.IsJobExecutionEnabled)
         {
@@ -65,7 +67,7 @@ public sealed class QuartzJobExecutionAdapter<TArgs> : IJob
             JobType = config.JobType,
             ArgsType = argsType,
             JobArgs = args,
-            CancellationToken = quartzContext.CancellationToken
+            CancellationToken = cancellationToken
         };
 
         _logger.LogDebug(
@@ -80,7 +82,7 @@ public sealed class QuartzJobExecutionAdapter<TArgs> : IJob
         {
             _logger.LogError(ex,
                 "Background job {JobType} failed in Quartz adapter.", config.JobType.Name);
-            throw new JobExecutionException(ex, refireImmediately: false);
+            throw new JobExecutionException(ex);
         }
     }
 }

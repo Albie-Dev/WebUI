@@ -49,7 +49,7 @@ public sealed class QuartzSchedulingOptions
     /// <summary>
     /// Callback for advanced Quartz configuration beyond what these options cover.
     /// </summary>
-    public Action<global::Quartz.IServiceCollectionQuartzConfigurator>? ConfigureQuartz { get; set; }
+    public Action<global::Quartz.IQuartzBuilder>? ConfigureQuartz { get; set; }
 
     /// <summary>
     /// Misfire threshold in milliseconds.

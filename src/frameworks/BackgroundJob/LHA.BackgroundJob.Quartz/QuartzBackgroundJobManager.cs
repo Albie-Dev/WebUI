@@ -45,7 +45,8 @@ public sealed class QuartzBackgroundJobManager : IBackgroundJobManager
         var jobId = $"{config.JobName}-{Guid.CreateVersion7():N}";
         var adapterType = typeof(QuartzJobExecutionAdapter<>).MakeGenericType(typeof(TArgs));
 
-        var jobDetail = JobBuilder.Create(adapterType)
+        var jobDetail = JobBuilder.Create()
+            .OfType(adapterType)
             .WithIdentity(jobId, _quartzOptions.JobGroup)
             .UsingJobData(QuartzBackgroundJobDataKeys.SerializedArgs, serializedArgs)
             .UsingJobData(QuartzBackgroundJobDataKeys.JobName, config.JobName)
@@ -70,7 +71,7 @@ public sealed class QuartzBackgroundJobManager : IBackgroundJobManager
         var trigger = triggerBuilder.Build();
 
         var scheduler = await _schedulerFactory.GetScheduler();
-        await scheduler.ScheduleJob(jobDetail, trigger);
+        await scheduler.ScheduleJob(jobDetail, trigger, default, CancellationToken.None);
 
         _logger.LogInformation(
             "Enqueued background job {JobName} via Quartz. JobId: {JobId}, Delay: {Delay}.",

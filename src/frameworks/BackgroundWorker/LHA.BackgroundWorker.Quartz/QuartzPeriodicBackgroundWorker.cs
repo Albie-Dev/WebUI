@@ -74,7 +74,7 @@ public abstract class QuartzPeriodicBackgroundWorker : IBackgroundWorker, IDispo
         var jobKey = new JobKey(workerTypeName, Group);
 
         // Remove stale job from a previous run (e.g. when using a persistent store)
-        if (await scheduler.CheckExists(jobKey, cancellationToken))
+        if (await scheduler.Exists(jobKey, cancellationToken))
         {
             await scheduler.DeleteJob(jobKey, cancellationToken);
         }
@@ -87,11 +87,12 @@ public abstract class QuartzPeriodicBackgroundWorker : IBackgroundWorker, IDispo
 
         var trigger = TriggerBuilder.Create()
             .WithIdentity($"{workerTypeName}.trigger", Group)
-            .WithCronSchedule(CronExpression, x => x.WithMisfireHandlingInstructionFireAndProceed())
+            .WithCronSchedule(CronExpression, x =>
+                x.WithMisfireInstruction(CronTriggerMisfireInstruction.FireAndProceed))
             .StartNow()
             .Build();
 
-        await scheduler.ScheduleJob(jobDetail, trigger, cancellationToken);
+        await scheduler.ScheduleJob(jobDetail, trigger, default, cancellationToken);
 
         Logger.LogInformation(
             "Scheduled Quartz background worker {WorkerType} with cron '{CronExpression}'.",
@@ -106,7 +107,7 @@ public abstract class QuartzPeriodicBackgroundWorker : IBackgroundWorker, IDispo
             var scheduler = await _schedulerFactory.GetScheduler(cancellationToken);
             var jobKey = new JobKey(GetType().FullName!, Group);
 
-            if (await scheduler.CheckExists(jobKey, cancellationToken))
+            if (await scheduler.Exists(jobKey, cancellationToken))
             {
                 await scheduler.DeleteJob(jobKey, cancellationToken);
             }

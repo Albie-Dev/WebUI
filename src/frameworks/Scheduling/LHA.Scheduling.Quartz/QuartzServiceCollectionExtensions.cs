@@ -50,16 +50,16 @@ public static class QuartzServiceCollectionExtensions
         // Register Quartz.NET core services
         services.AddQuartz(q =>
         {
-            q.SchedulerName = options.SchedulerName;
+            q.ConfigureScheduler(scheduler =>
+            {
+                scheduler.InstanceName = options.SchedulerName;
+            });
 
             // Thread pool
             q.UseDefaultThreadPool(tp =>
             {
                 tp.MaxConcurrency = options.ThreadCount;
             });
-
-            // Misfire threshold
-            q.MisfireThreshold = TimeSpan.FromMilliseconds(options.MisfireThresholdMs);
 
             // Persistent store (optional)
             if (options.UsePersistentStore)
@@ -78,15 +78,23 @@ public static class QuartzServiceCollectionExtensions
 
                 q.UsePersistentStore(store =>
                 {
-                    store.UseProperties = true;
-                    store.RetryInterval = TimeSpan.FromSeconds(15);
-                    store.PerformSchemaValidation = true;
-
-                    store.UseGenericDatabase(options.AdoNetProvider, db =>
+                    store.ConfigureStore(jobStore =>
                     {
-                        db.ConnectionString = connectionString;
-                        db.TablePrefix = tablePrefix;
+                        jobStore.StoreJobDataAsStrings = true;
+                        jobStore.DbRetryInterval = TimeSpan.FromSeconds(15);
+                        jobStore.SchemaProvisioning = SchemaProvisioning.Validate;
+                        jobStore.TablePrefix = tablePrefix;
+                        jobStore.MisfireThreshold = TimeSpan.FromMilliseconds(options.MisfireThresholdMs);
                     });
+
+                    store.UseGenericDatabase(options.AdoNetProvider, connectionString);
+                });
+            }
+            else
+            {
+                q.UseInMemoryStore(store =>
+                {
+                    store.MisfireThreshold = TimeSpan.FromMilliseconds(options.MisfireThresholdMs);
                 });
             }
 

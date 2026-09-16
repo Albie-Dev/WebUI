@@ -2,7 +2,6 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Quartz;
-using Quartz.Impl.Matchers;
 
 namespace LHA.Scheduling.Quartz;
 
@@ -88,10 +87,9 @@ public sealed class QuartzRecurringJobManager : IRecurringJobManager
         var trigger = triggerBuilder.Build();
 
         // Check if exists → reschedule; otherwise → schedule new
-        if (await scheduler.CheckExists(jobKey, cancellationToken))
+        if (await scheduler.Exists(jobKey, cancellationToken))
         {
-            await scheduler.AddJob(jobDetail, replace: true, storeNonDurableWhileAwaitingScheduling: true,
-                cancellationToken: cancellationToken);
+            await scheduler.AddJob(jobDetail, AddJobOptions.Replacing, cancellationToken);
             await scheduler.RescheduleJob(triggerKey, trigger, cancellationToken);
 
             _logger.LogInformation(
@@ -100,7 +98,7 @@ public sealed class QuartzRecurringJobManager : IRecurringJobManager
         }
         else
         {
-            await scheduler.ScheduleJob(jobDetail, trigger, cancellationToken);
+            await scheduler.ScheduleJob(jobDetail, trigger, default, cancellationToken);
 
             _logger.LogInformation(
                 "Created recurring job [{RecurringJobId}] cron [{Cron}] tz [{TimeZone}]",
@@ -126,10 +124,10 @@ public sealed class QuartzRecurringJobManager : IRecurringJobManager
         var scheduler = await _schedulerFactory.GetScheduler(cancellationToken);
         var jobKey = new JobKey(recurringJobId, RecurringGroup);
 
-        if (!await scheduler.CheckExists(jobKey, cancellationToken))
+        if (!await scheduler.Exists(jobKey, cancellationToken))
             throw new InvalidOperationException($"Recurring job '{recurringJobId}' does not exist.");
 
-        await scheduler.TriggerJob(jobKey, cancellationToken);
+        await scheduler.TriggerJob(jobKey, null, cancellationToken);
 
         _logger.LogInformation("Triggered recurring job [{RecurringJobId}]", recurringJobId);
     }
@@ -138,7 +136,7 @@ public sealed class QuartzRecurringJobManager : IRecurringJobManager
     public async Task<bool> ExistsAsync(string recurringJobId, CancellationToken cancellationToken = default)
     {
         var scheduler = await _schedulerFactory.GetScheduler(cancellationToken);
-        return await scheduler.CheckExists(new JobKey(recurringJobId, RecurringGroup), cancellationToken);
+        return await scheduler.Exists(new JobKey(recurringJobId, RecurringGroup), cancellationToken);
     }
 
     /// <inheritdoc />
@@ -165,8 +163,8 @@ public sealed class QuartzRecurringJobManager : IRecurringJobManager
             if (cronTrigger is not null)
             {
                 cron = cronTrigger.CronExpressionString ?? string.Empty;
-                nextFire = cronTrigger.GetNextFireTimeUtc();
-                prevFire = cronTrigger.GetPreviousFireTimeUtc();
+                nextFire = cronTrigger.NextFireTimeUtc;
+                prevFire = cronTrigger.PreviousFireTimeUtc;
                 timeZoneId = cronTrigger.TimeZone.Id;
 
                 var triggerState = await scheduler.GetTriggerState(cronTrigger.Key, cancellationToken);
@@ -201,18 +199,18 @@ public sealed class QuartzRecurringJobManager : IRecurringJobManager
         switch (policy)
         {
             case MisfirePolicy.FireOnceNow:
-                cron.WithMisfireHandlingInstructionFireAndProceed();
+                cron.WithMisfireInstruction(CronTriggerMisfireInstruction.FireAndProceed);
                 break;
             case MisfirePolicy.IgnoreMisfire:
-                cron.WithMisfireHandlingInstructionIgnoreMisfires();
+                cron.WithMisfireInstruction(CronTriggerMisfireInstruction.IgnoreMisfires);
                 break;
             case MisfirePolicy.FireAll:
                 // Quartz has no direct "fire all" equivalent;
                 // DoNothing waits for next scheduled time (closest safe default)
-                cron.WithMisfireHandlingInstructionDoNothing();
+                cron.WithMisfireInstruction(CronTriggerMisfireInstruction.DoNothing);
                 break;
             default:
-                cron.WithMisfireHandlingInstructionFireAndProceed();
+                cron.WithMisfireInstruction(CronTriggerMisfireInstruction.FireAndProceed);
                 break;
         }
     }

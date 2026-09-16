@@ -29,7 +29,9 @@ public sealed class QuartzJobAdapter<TJob> : IJob where TJob : IScheduledJob
         _logger = logger;
     }
 
-    public async Task Execute(IJobExecutionContext quartzContext)
+    public async ValueTask Execute(
+        IJobExecutionContext quartzContext,
+        CancellationToken cancellationToken = default)
     {
         var jobDetail = quartzContext.JobDetail;
         var dataMap = quartzContext.MergedJobDataMap;
@@ -72,7 +74,7 @@ public sealed class QuartzJobAdapter<TJob> : IJob where TJob : IScheduledJob
             UserId = userId,
             RetryAttempt = retryAttempt,
             SerializedParameters = serializedParams,
-            CancellationToken = quartzContext.CancellationToken,
+            CancellationToken = cancellationToken,
             Metadata = metadata,
             SchedulerMetadata = new Dictionary<string, object>
             {
@@ -106,8 +108,7 @@ public sealed class QuartzJobAdapter<TJob> : IJob where TJob : IScheduledJob
             var backoff = TimeSpan.FromSeconds(Math.Pow(2, retryAttempt) * 5);
             throw new JobExecutionException(
                 result.Message ?? "Job failed",
-                result.Exception ?? new InvalidOperationException(result.Message ?? "Job failed"),
-                refireImmediately: false);
+                result.Exception ?? new InvalidOperationException(result.Message ?? "Job failed"));
         }
         else
         {

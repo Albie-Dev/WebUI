@@ -66,7 +66,7 @@ builder.Services.AddAccountEntityFrameworkCore(connectionString);
 builder.Services.AddLHAHangfireScheduling(options =>
 {
     options.ConfigureHangfire = config =>
-        config.UsePostgreSqlStorage(opt => opt.UseNpgsqlConnection(connectionString));
+        config.UsePostgreSqlStorage(connectionString);
     options.EnableServer = false; // API node only enqueues and monitors, does not process jobs
 });
 

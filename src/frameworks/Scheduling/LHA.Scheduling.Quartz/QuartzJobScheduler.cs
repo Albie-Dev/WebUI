@@ -46,7 +46,7 @@ public sealed class QuartzJobScheduler : IJobScheduler
         var (jobDetail, trigger) = BuildOneShot<TJob>(jobId, parameters, options,
             b => b.StartNow());
 
-        await scheduler.ScheduleJob(jobDetail, trigger, cancellationToken);
+        await scheduler.ScheduleJob(jobDetail, trigger, default, cancellationToken);
 
         _logger.LogInformation(
             "Enqueued job [{JobType}] → Quartz key [{JobId}]",
@@ -68,7 +68,7 @@ public sealed class QuartzJobScheduler : IJobScheduler
         var (jobDetail, trigger) = BuildOneShot<TJob>(jobId, parameters, options,
             b => b.StartAt(startAt));
 
-        await scheduler.ScheduleJob(jobDetail, trigger, cancellationToken);
+        await scheduler.ScheduleJob(jobDetail, trigger, default, cancellationToken);
 
         _logger.LogInformation(
             "Scheduled job [{JobType}] → Quartz key [{JobId}] delay [{Delay}]",
@@ -89,7 +89,7 @@ public sealed class QuartzJobScheduler : IJobScheduler
         var (jobDetail, trigger) = BuildOneShot<TJob>(jobId, parameters, options,
             b => b.StartAt(enqueueAt));
 
-        await scheduler.ScheduleJob(jobDetail, trigger, cancellationToken);
+        await scheduler.ScheduleJob(jobDetail, trigger, default, cancellationToken);
 
         _logger.LogInformation(
             "Scheduled job [{JobType}] → Quartz key [{JobId}] at [{EnqueueAt}]",
@@ -141,7 +141,7 @@ public sealed class QuartzJobScheduler : IJobScheduler
         string jobId,
         object? parameters,
         JobOptions? options,
-        Action<TriggerBuilder> configureTrigger) where TJob : IScheduledJob
+        Action<TriggerBuilder<IJob>> configureTrigger) where TJob : IScheduledJob
     {
         var dataMap = new JobDataMap();
         PopulateDataMap<TJob>(dataMap, parameters, options);

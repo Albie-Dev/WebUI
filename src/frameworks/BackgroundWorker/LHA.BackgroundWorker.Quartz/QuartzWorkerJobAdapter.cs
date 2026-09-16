@@ -26,7 +26,9 @@ internal sealed class QuartzWorkerJobAdapter : IJob
         _logger = logger;
     }
 
-    public async Task Execute(IJobExecutionContext context)
+    public async ValueTask Execute(
+        IJobExecutionContext context,
+        CancellationToken cancellationToken = default)
     {
         var workerTypeName = context.MergedJobDataMap.GetString(WorkerTypeKey)
             ?? throw new InvalidOperationException(
@@ -45,12 +47,12 @@ internal sealed class QuartzWorkerJobAdapter : IJob
 
         try
         {
-            await worker.DoWorkAsync(context.CancellationToken);
+            await worker.DoWorkAsync(cancellationToken);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogError(ex, "Error in Quartz background worker {WorkerType}.", workerType.Name);
-            throw new JobExecutionException(ex, refireImmediately: false);
+            throw new JobExecutionException(ex);
         }
     }
 }

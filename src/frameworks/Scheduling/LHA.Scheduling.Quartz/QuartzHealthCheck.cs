@@ -27,28 +27,30 @@ public sealed class QuartzHealthCheck : ISchedulingHealthCheck
         try
         {
             var scheduler = await _schedulerFactory.GetScheduler(cancellationToken);
-            var metadata = await scheduler.GetMetaData(cancellationToken);
+            var metadata = await scheduler.GetMetadata(cancellationToken);
+            var isRunning = metadata.Status == SchedulerStatus.Running;
 
             var data = new Dictionary<string, object>
             {
                 ["schedulerName"] = metadata.SchedulerName,
-                ["started"] = metadata.Started,
+                ["started"] = isRunning,
+                ["status"] = metadata.Status.ToString(),
                 ["schedulerInstanceId"] = metadata.SchedulerInstanceId,
                 ["threadPoolSize"] = metadata.ThreadPoolSize,
                 ["runningSince"] = metadata.RunningSince?.ToString("O") ?? "never",
                 ["jobStoreClustered"] = metadata.JobStoreClustered,
-                ["jobStoreSupportsPersistence"] = metadata.JobStoreSupportsPersistence,
-                ["numberOfJobsExecuted"] = metadata.NumberOfJobsExecuted
+                ["jobStoreSupportsPersistence"] = metadata.JobStorePersistent,
+                ["numberOfJobsExecuted"] = metadata.JobsExecuted
             };
 
-            if (!metadata.Started || metadata.InStandbyMode)
+            if (!isRunning)
             {
                 return new SchedulerHealthResult
                 {
                     IsHealthy = false,
-                    Description = metadata.InStandbyMode
+                    Description = metadata.Status == SchedulerStatus.Standby
                         ? "Quartz scheduler is in standby mode — jobs will not execute"
-                        : "Quartz scheduler has not been started",
+                        : $"Quartz scheduler is not running ({metadata.Status})",
                     Data = data
                 };
             }
@@ -58,7 +60,7 @@ public sealed class QuartzHealthCheck : ISchedulingHealthCheck
                 IsHealthy = true,
                 Description = $"Quartz healthy: {metadata.SchedulerName}, " +
                               $"pool size {metadata.ThreadPoolSize}, " +
-                              $"{metadata.NumberOfJobsExecuted} jobs executed",
+                              $"{metadata.JobsExecuted} jobs executed",
                 Data = data
             };
         }
